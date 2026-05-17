@@ -2,31 +2,54 @@
 //! Tokio task. Separated from `message_processor.rs` to keep that file small
 //! and to make future feature-growth easier to manage.
 
-use codex_core::codex_wrapper::init_codex;
-use codex_core::config::Config as CodexConfig;
-use codex_core::protocol::AgentMessageEvent;
-use codex_core::protocol::Event;
-use codex_core::protocol::EventMsg;
-use codex_core::protocol::InputItem;
-use codex_core::protocol::Op;
-use codex_core::protocol::TaskCompleteEvent;
-use mcp_types::CallToolResult;
-use mcp_types::CallToolResultContent;
-use mcp_types::JSONRPC_VERSION;
-use mcp_types::JSONRPCMessage;
-use mcp_types::JSONRPCResponse;
-use mcp_types::RequestId;
-use mcp_types::TextContent;
-use tokio::sync::mpsc::Sender;
+use std::collections::HashMap;
+use std::sync::Arc;
 
-/// Convert a Codex [`Event`] to an MCP notification.
-fn codex_event_to_notification(event: &Event) -> JSONRPCMessage {
-    #[expect(clippy::expect_used)]
-    JSONRPCMessage::Notification(mcp_types::JSONRPCNotification {
-        jsonrpc: JSONRPC_VERSION.into(),
-        method: "codex/event".into(),
-        params: Some(serde_json::to_value(event).expect("Event must serialize")),
-    })
+use crate::exec_approval::handle_exec_approval_request;
+use crate::outgoing_message::OutgoingMessageSender;
+use crate::outgoing_message::OutgoingNotificationMeta;
+use crate::patch_approval::handle_patch_approval_request;
+use codex_core::CodexThread;
+use codex_core::NewThread;
+use codex_core::ThreadManager;
+use codex_core::config::Config as CodexConfig;
+use codex_protocol::ThreadId;
+use codex_protocol::protocol::AgentMessageEvent;
+use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use codex_protocol::protocol::Event;
+use codex_protocol::protocol::EventMsg;
+use codex_protocol::protocol::ExecApprovalRequestEvent;
+use codex_protocol::protocol::Op;
+use codex_protocol::protocol::Submission;
+use codex_protocol::protocol::TurnCompleteEvent;
+use codex_protocol::user_input::UserInput;
+use rmcp::model::CallToolResult;
+use rmcp::model::Content;
+use rmcp::model::RequestId;
+use serde_json::json;
+use tokio::sync::Mutex;
+
+/// To adhere to MCP `tools/call` response format, include the Codex
+/// `threadId` in the `structured_content` field of the response.
+/// Some MCP clients ignore `content` when `structuredContent` is present, so
+/// mirror the text there as well.
+pub(crate) fn create_call_tool_result_with_thread_id(
+    thread_id: ThreadId,
+    text: String,
+    is_error: Option<bool>,
+) -> CallToolResult {
+    let content_text = text;
+    let content = vec![Content::text(content_text.clone())];
+    let structured_content = json!({
+        "threadId": thread_id,
+        "content": content_text,
+    });
+    CallToolResult {
+        content,
+        is_error,
+        structured_content: Some(structured_content),
+        meta: None,
+    }
 }
 
 /// Run a complete Codex session and stream events back to the client.
@@ -37,140 +60,333 @@ pub async fn run_codex_tool_session(
     id: RequestId,
     initial_prompt: String,
     config: CodexConfig,
-    outgoing: Sender<JSONRPCMessage>,
+    outgoing: Arc<OutgoingMessageSender>,
+    thread_manager: Arc<ThreadManager>,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
 ) {
-    let (codex, first_event, _ctrl_c) = match init_codex(config).await {
+    let NewThread {
+        thread_id,
+        thread,
+        session_configured,
+    } = match thread_manager.start_thread(config.clone()).await {
         Ok(res) => res,
         Err(e) => {
             let result = CallToolResult {
-                content: vec![CallToolResultContent::TextContent(TextContent {
-                    r#type: "text".to_string(),
-                    text: format!("Failed to start Codex session: {e}"),
-                    annotations: None,
-                })],
+                content: vec![Content::text(format!("Failed to start Codex session: {e}"))],
                 is_error: Some(true),
+                structured_content: None,
+                meta: None,
             };
-            let _ = outgoing
-                .send(JSONRPCMessage::Response(JSONRPCResponse {
-                    jsonrpc: JSONRPC_VERSION.into(),
-                    id,
-                    result: result.into(),
-                }))
-                .await;
+            outgoing.send_response(id.clone(), result).await;
             return;
         }
     };
 
-    // Send initial SessionConfigured event.
-    let _ = outgoing
-        .send(codex_event_to_notification(&first_event))
+    let session_configured_event = Event {
+        // Use a fake id value for now.
+        id: "".to_string(),
+        msg: EventMsg::SessionConfigured(session_configured.clone()),
+    };
+    outgoing
+        .send_event_as_notification(
+            &session_configured_event,
+            Some(OutgoingNotificationMeta {
+                request_id: Some(id.clone()),
+                thread_id: Some(thread_id),
+            }),
+        )
         .await;
 
-    if let Err(e) = codex
-        .submit(Op::UserInput {
-            items: vec![InputItem::Text {
+    // Use the original MCP request ID as the `sub_id` for the Codex submission so that
+    // any events emitted for this tool-call can be correlated with the
+    // originating `tools/call` request.
+    let sub_id = id.to_string();
+    running_requests_id_to_codex_uuid
+        .lock()
+        .await
+        .insert(id.clone(), thread_id);
+    let submission = Submission {
+        id: sub_id.clone(),
+        op: Op::UserInput {
+            environments: None,
+            items: vec![UserInput::Text {
                 text: initial_prompt.clone(),
+                // MCP tool prompts are plain text with no UI element ranges.
+                text_elements: Vec::new(),
             }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+        },
+        trace: None,
+    };
+
+    if let Err(e) = thread.submit_with_id(submission).await {
+        tracing::error!("Failed to submit initial prompt: {e}");
+        let result = create_call_tool_result_with_thread_id(
+            thread_id,
+            format!("Failed to submit initial prompt: {e}"),
+            Some(true),
+        );
+        outgoing.send_response(id.clone(), result).await;
+        // unregister the id so we don't keep it in the map
+        running_requests_id_to_codex_uuid.lock().await.remove(&id);
+        return;
+    }
+
+    run_codex_tool_session_inner(
+        thread_id,
+        thread,
+        outgoing,
+        id,
+        running_requests_id_to_codex_uuid,
+    )
+    .await;
+}
+
+pub async fn run_codex_tool_session_reply(
+    thread_id: ThreadId,
+    thread: Arc<CodexThread>,
+    outgoing: Arc<OutgoingMessageSender>,
+    request_id: RequestId,
+    prompt: String,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+) {
+    running_requests_id_to_codex_uuid
+        .lock()
+        .await
+        .insert(request_id.clone(), thread_id);
+    if let Err(e) = thread
+        .submit(Op::UserInput {
+            environments: None,
+            items: vec![UserInput::Text {
+                text: prompt,
+                // MCP tool prompts are plain text with no UI element ranges.
+                text_elements: Vec::new(),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
         })
         .await
     {
-        tracing::error!("Failed to submit initial prompt: {e}");
+        tracing::error!("Failed to submit user input: {e}");
+        let result = create_call_tool_result_with_thread_id(
+            thread_id,
+            format!("Failed to submit user input: {e}"),
+            Some(true),
+        );
+        outgoing.send_response(request_id.clone(), result).await;
+        // unregister the id so we don't keep it in the map
+        running_requests_id_to_codex_uuid
+            .lock()
+            .await
+            .remove(&request_id);
+        return;
     }
 
-    let mut last_agent_message: Option<String> = None;
+    run_codex_tool_session_inner(
+        thread_id,
+        thread,
+        outgoing,
+        request_id,
+        running_requests_id_to_codex_uuid,
+    )
+    .await;
+}
+
+async fn run_codex_tool_session_inner(
+    thread_id: ThreadId,
+    thread: Arc<CodexThread>,
+    outgoing: Arc<OutgoingMessageSender>,
+    request_id: RequestId,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+) {
+    let request_id_str = request_id.to_string();
 
     // Stream events until the task needs to pause for user interaction or
     // completes.
     loop {
-        match codex.next_event().await {
+        match thread.next_event().await {
             Ok(event) => {
-                let _ = outgoing.send(codex_event_to_notification(&event)).await;
+                outgoing
+                    .send_event_as_notification(
+                        &event,
+                        Some(OutgoingNotificationMeta {
+                            request_id: Some(request_id.clone()),
+                            thread_id: Some(thread_id),
+                        }),
+                    )
+                    .await;
 
-                match &event.msg {
-                    EventMsg::AgentMessage(AgentMessageEvent { message }) => {
-                        last_agent_message = Some(message.clone());
+                match event.msg {
+                    EventMsg::ExecApprovalRequest(ev) => {
+                        let approval_id = ev.effective_approval_id();
+                        let ExecApprovalRequestEvent {
+                            turn_id: _,
+                            started_at_ms: _,
+                            command,
+                            cwd,
+                            call_id,
+                            approval_id: _,
+                            reason: _,
+                            proposed_execpolicy_amendment: _,
+                            proposed_network_policy_amendments: _,
+                            parsed_cmd,
+                            network_approval_context: _,
+                            additional_permissions: _,
+                            available_decisions: _,
+                        } = ev;
+                        handle_exec_approval_request(
+                            command,
+                            cwd.to_path_buf(),
+                            outgoing.clone(),
+                            thread.clone(),
+                            request_id.clone(),
+                            request_id_str.clone(),
+                            event.id.clone(),
+                            call_id,
+                            approval_id,
+                            parsed_cmd,
+                            thread_id,
+                        )
+                        .await;
+                        continue;
                     }
-                    EventMsg::ExecApprovalRequest(_) => {
-                        let result = CallToolResult {
-                            content: vec![CallToolResultContent::TextContent(TextContent {
-                                r#type: "text".to_string(),
-                                text: "EXEC_APPROVAL_REQUIRED".to_string(),
-                                annotations: None,
-                            })],
-                            is_error: None,
-                        };
-                        let _ = outgoing
-                            .send(JSONRPCMessage::Response(JSONRPCResponse {
-                                jsonrpc: JSONRPC_VERSION.into(),
-                                id: id.clone(),
-                                result: result.into(),
-                            }))
-                            .await;
+                    EventMsg::PlanDelta(_) => {
+                        continue;
+                    }
+                    EventMsg::Error(err_event) => {
+                        // Always respond in tools/call's expected shape, and include conversationId so the client can resume.
+                        let result = create_call_tool_result_with_thread_id(
+                            thread_id,
+                            err_event.message,
+                            Some(true),
+                        );
+                        outgoing.send_response(request_id.clone(), result).await;
                         break;
                     }
-                    EventMsg::ApplyPatchApprovalRequest(_) => {
-                        let result = CallToolResult {
-                            content: vec![CallToolResultContent::TextContent(TextContent {
-                                r#type: "text".to_string(),
-                                text: "PATCH_APPROVAL_REQUIRED".to_string(),
-                                annotations: None,
-                            })],
-                            is_error: None,
-                        };
-                        let _ = outgoing
-                            .send(JSONRPCMessage::Response(JSONRPCResponse {
-                                jsonrpc: JSONRPC_VERSION.into(),
-                                id: id.clone(),
-                                result: result.into(),
-                            }))
-                            .await;
-                        break;
+                    EventMsg::Warning(_)
+                    | EventMsg::GuardianWarning(_)
+                    | EventMsg::ModelVerification(_) => {
+                        continue;
                     }
-                    EventMsg::TaskComplete(TaskCompleteEvent {
-                        last_agent_message: _,
+                    EventMsg::GuardianAssessment(_) => {
+                        continue;
+                    }
+                    EventMsg::ElicitationRequest(_) => {
+                        // TODO: forward elicitation requests to the client?
+                        continue;
+                    }
+                    EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+                        call_id,
+                        turn_id: _,
+                        started_at_ms: _,
+                        reason,
+                        grant_root,
+                        changes,
                     }) => {
-                        let result = if let Some(msg) = last_agent_message {
-                            CallToolResult {
-                                content: vec![CallToolResultContent::TextContent(TextContent {
-                                    r#type: "text".to_string(),
-                                    text: msg,
-                                    annotations: None,
-                                })],
-                                is_error: None,
-                            }
-                        } else {
-                            CallToolResult {
-                                content: vec![CallToolResultContent::TextContent(TextContent {
-                                    r#type: "text".to_string(),
-                                    text: String::new(),
-                                    annotations: None,
-                                })],
-                                is_error: None,
-                            }
+                        handle_patch_approval_request(
+                            call_id,
+                            reason,
+                            grant_root,
+                            changes,
+                            outgoing.clone(),
+                            thread.clone(),
+                            request_id.clone(),
+                            request_id_str.clone(),
+                            event.id.clone(),
+                            thread_id,
+                        )
+                        .await;
+                        continue;
+                    }
+                    EventMsg::TurnComplete(TurnCompleteEvent {
+                        last_agent_message, ..
+                    }) => {
+                        let text = match last_agent_message {
+                            Some(msg) => msg,
+                            None => "".to_string(),
                         };
-                        let _ = outgoing
-                            .send(JSONRPCMessage::Response(JSONRPCResponse {
-                                jsonrpc: JSONRPC_VERSION.into(),
-                                id: id.clone(),
-                                result: result.into(),
-                            }))
-                            .await;
+                        let result = create_call_tool_result_with_thread_id(
+                            thread_id, text, /*is_error*/ None,
+                        );
+                        outgoing.send_response(request_id.clone(), result).await;
+                        // unregister the id so we don't keep it in the map
+                        running_requests_id_to_codex_uuid
+                            .lock()
+                            .await
+                            .remove(&request_id);
                         break;
                     }
                     EventMsg::SessionConfigured(_) => {
                         tracing::error!("unexpected SessionConfigured event");
                     }
-                    EventMsg::Error(_)
-                    | EventMsg::TaskStarted
+                    EventMsg::ThreadGoalUpdated(_) => {
+                        // Ignore thread goal metadata updates in MCP tool runner.
+                    }
+                    EventMsg::McpStartupUpdate(_) | EventMsg::McpStartupComplete(_) => {
+                        // Ignored in MCP tool runner.
+                    }
+                    EventMsg::AgentMessage(AgentMessageEvent { .. }) => {
+                        // TODO: think how we want to support this in the MCP
+                    }
+                    EventMsg::AgentReasoningRawContent(_)
+                    | EventMsg::TurnStarted(_)
+                    | EventMsg::TokenCount(_)
                     | EventMsg::AgentReasoning(_)
+                    | EventMsg::AgentReasoningSectionBreak(_)
                     | EventMsg::McpToolCallBegin(_)
                     | EventMsg::McpToolCallEnd(_)
+                    | EventMsg::RealtimeConversationListVoicesResponse(_)
                     | EventMsg::ExecCommandBegin(_)
+                    | EventMsg::TerminalInteraction(_)
+                    | EventMsg::ExecCommandOutputDelta(_)
                     | EventMsg::ExecCommandEnd(_)
-                    | EventMsg::BackgroundEvent(_)
+                    | EventMsg::StreamError(_)
                     | EventMsg::PatchApplyBegin(_)
+                    | EventMsg::PatchApplyUpdated(_)
                     | EventMsg::PatchApplyEnd(_)
-                    | EventMsg::GetHistoryEntryResponse(_) => {
+                    | EventMsg::TurnDiff(_)
+                    | EventMsg::WebSearchBegin(_)
+                    | EventMsg::WebSearchEnd(_)
+                    | EventMsg::PlanUpdate(_)
+                    | EventMsg::TurnAborted(_)
+                    | EventMsg::UserMessage(_)
+                    | EventMsg::ShutdownComplete
+                    | EventMsg::ImageGenerationBegin(_)
+                    | EventMsg::ImageGenerationEnd(_)
+                    | EventMsg::ViewImageToolCall(_)
+                    | EventMsg::RawResponseItem(_)
+                    | EventMsg::EnteredReviewMode(_)
+                    | EventMsg::ItemStarted(_)
+                    | EventMsg::ItemCompleted(_)
+                    | EventMsg::HookStarted(_)
+                    | EventMsg::HookCompleted(_)
+                    | EventMsg::AgentMessageContentDelta(_)
+                    | EventMsg::ReasoningContentDelta(_)
+                    | EventMsg::ReasoningRawContentDelta(_)
+                    | EventMsg::ExitedReviewMode(_)
+                    | EventMsg::RequestUserInput(_)
+                    | EventMsg::RequestPermissions(_)
+                    | EventMsg::DynamicToolCallRequest(_)
+                    | EventMsg::DynamicToolCallResponse(_)
+                    | EventMsg::ContextCompacted(_)
+                    | EventMsg::ModelReroute(_)
+                    | EventMsg::ThreadRolledBack(_)
+                    | EventMsg::CollabAgentSpawnBegin(_)
+                    | EventMsg::CollabAgentSpawnEnd(_)
+                    | EventMsg::CollabAgentInteractionBegin(_)
+                    | EventMsg::CollabAgentInteractionEnd(_)
+                    | EventMsg::CollabWaitingBegin(_)
+                    | EventMsg::CollabWaitingEnd(_)
+                    | EventMsg::CollabCloseBegin(_)
+                    | EventMsg::CollabCloseEnd(_)
+                    | EventMsg::CollabResumeBegin(_)
+                    | EventMsg::CollabResumeEnd(_)
+                    | EventMsg::RealtimeConversationStarted(_)
+                    | EventMsg::RealtimeConversationSdp(_)
+                    | EventMsg::RealtimeConversationRealtime(_)
+                    | EventMsg::RealtimeConversationClosed(_)
+                    | EventMsg::DeprecationNotice(_) => {
                         // For now, we do not do anything extra for these
                         // events. Note that
                         // send(codex_event_to_notification(&event)) above has
@@ -181,23 +397,37 @@ pub async fn run_codex_tool_session(
                 }
             }
             Err(e) => {
-                let result = CallToolResult {
-                    content: vec![CallToolResultContent::TextContent(TextContent {
-                        r#type: "text".to_string(),
-                        text: format!("Codex runtime error: {e}"),
-                        annotations: None,
-                    })],
-                    is_error: Some(true),
-                };
-                let _ = outgoing
-                    .send(JSONRPCMessage::Response(JSONRPCResponse {
-                        jsonrpc: JSONRPC_VERSION.into(),
-                        id: id.clone(),
-                        result: result.into(),
-                    }))
-                    .await;
+                let result = create_call_tool_result_with_thread_id(
+                    thread_id,
+                    format!("Codex runtime error: {e}"),
+                    Some(true),
+                );
+                outgoing.send_response(request_id.clone(), result).await;
                 break;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn call_tool_result_includes_thread_id_in_structured_content() {
+        let thread_id = ThreadId::new();
+        let result = create_call_tool_result_with_thread_id(
+            thread_id,
+            "done".to_string(),
+            /*is_error*/ None,
+        );
+        assert_eq!(
+            result.structured_content,
+            Some(json!({
+                "threadId": thread_id,
+                "content": "done",
+            }))
+        );
     }
 }

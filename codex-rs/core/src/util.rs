@@ -1,66 +1,120 @@
-use std::sync::Arc;
+use std::path::Path;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use rand::Rng;
-use tokio::sync::Notify;
-use tracing::debug;
-
-use crate::config::Config;
+use tracing::error;
 
 const INITIAL_DELAY_MS: u64 = 200;
-const BACKOFF_FACTOR: f64 = 1.3;
+const BACKOFF_FACTOR: f64 = 2.0;
 
-/// Make a CancellationToken that is fulfilled when SIGINT occurs.
-pub fn notify_on_sigint() -> Arc<Notify> {
-    let notify = Arc::new(Notify::new());
-
-    tokio::spawn({
-        let notify = Arc::clone(&notify);
-        async move {
-            loop {
-                tokio::signal::ctrl_c().await.ok();
-                debug!("Keyboard interrupt");
-                notify.notify_waiters();
-            }
-        }
-    });
-
-    notify
+/// Emit structured feedback metadata as key/value pairs.
+///
+/// This logs a tracing event with `target: "feedback_tags"`. If
+/// `codex_feedback::CodexFeedback::metadata_layer()` is installed, these fields are captured and
+/// later attached as tags when feedback is uploaded.
+///
+/// Values are wrapped with [`tracing::field::DebugValue`], so the expression only needs to
+/// implement [`std::fmt::Debug`].
+///
+/// Example:
+///
+/// ```rust
+/// codex_core::feedback_tags!(model = "gpt-5", cached = true);
+/// codex_core::feedback_tags!(provider = provider_id, request_id = request_id);
+/// ```
+#[macro_export]
+macro_rules! feedback_tags {
+    ($( $key:ident = $value:expr ),+ $(,)?) => {
+        ::tracing::info!(
+            target: "feedback_tags",
+            $( $key = ::tracing::field::debug(&$value) ),+
+        );
+    };
 }
 
-pub(crate) fn backoff(attempt: u64) -> Duration {
+struct Auth401FeedbackSnapshot<'a> {
+    request_id: &'a str,
+    cf_ray: &'a str,
+    error: &'a str,
+    error_code: &'a str,
+}
+
+impl<'a> Auth401FeedbackSnapshot<'a> {
+    fn from_optional_fields(
+        request_id: Option<&'a str>,
+        cf_ray: Option<&'a str>,
+        error: Option<&'a str>,
+        error_code: Option<&'a str>,
+    ) -> Self {
+        Self {
+            request_id: request_id.unwrap_or(""),
+            cf_ray: cf_ray.unwrap_or(""),
+            error: error.unwrap_or(""),
+            error_code: error_code.unwrap_or(""),
+        }
+    }
+}
+
+pub(crate) fn emit_feedback_auth_recovery_tags(
+    auth_recovery_mode: &str,
+    auth_recovery_phase: &str,
+    auth_recovery_outcome: &str,
+    auth_request_id: Option<&str>,
+    auth_cf_ray: Option<&str>,
+    auth_error: Option<&str>,
+    auth_error_code: Option<&str>,
+) {
+    let auth_401 = Auth401FeedbackSnapshot::from_optional_fields(
+        auth_request_id,
+        auth_cf_ray,
+        auth_error,
+        auth_error_code,
+    );
+    feedback_tags!(
+        auth_recovery_mode = auth_recovery_mode,
+        auth_recovery_phase = auth_recovery_phase,
+        auth_recovery_outcome = auth_recovery_outcome,
+        auth_401_request_id = auth_401.request_id,
+        auth_401_cf_ray = auth_401.cf_ray,
+        auth_401_error = auth_401.error,
+        auth_401_error_code = auth_401.error_code
+    );
+}
+
+pub fn backoff(attempt: u64) -> Duration {
     let exp = BACKOFF_FACTOR.powi(attempt.saturating_sub(1) as i32);
     let base = (INITIAL_DELAY_MS as f64 * exp) as u64;
     let jitter = rand::rng().random_range(0.9..1.1);
     Duration::from_millis((base as f64 * jitter) as u64)
 }
 
-/// Return `true` if the project folder specified by the `Config` is inside a
-/// Git repository.
-///
-/// The check walks up the directory hierarchy looking for a `.git` file or
-/// directory (note `.git` can be a file that contains a `gitdir` entry). This
-/// approach does **not** require the `git` binary or the `git2` crate and is
-/// therefore fairly lightweight.
-///
-/// Note that this does **not** detect *work‑trees* created with
-/// `git worktree add` where the checkout lives outside the main repository
-/// directory. If you need Codex to work from such a checkout simply pass the
-/// `--allow-no-git-exec` CLI flag that disables the repo requirement.
-pub fn is_inside_git_repo(config: &Config) -> bool {
-    let mut dir = config.cwd.to_path_buf();
-
-    loop {
-        if dir.join(".git").exists() {
-            return true;
-        }
-
-        // Pop one component (go up one directory).  `pop` returns false when
-        // we have reached the filesystem root.
-        if !dir.pop() {
-            break;
-        }
+pub(crate) fn error_or_panic(message: impl std::string::ToString) {
+    if cfg!(debug_assertions) {
+        panic!("{}", message.to_string());
+    } else {
+        error!("{}", message.to_string());
     }
-
-    false
 }
+
+pub fn resolve_path(base: &Path, path: &PathBuf) -> PathBuf {
+    if path.is_absolute() {
+        path.clone()
+    } else {
+        base.join(path)
+    }
+}
+
+/// Trim a thread name and return `None` if it is empty after trimming.
+pub fn normalize_thread_name(name: &str) -> Option<String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+#[cfg(test)]
+#[path = "util_tests.rs"]
+mod tests;
