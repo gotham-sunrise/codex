@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "cloud-requirements",
+    crate_name = "anecdoct_cloud_requirements",
+)

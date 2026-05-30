@@ -1,0 +1,10 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "windows-sandbox-rs",
+    crate_name = "anecdoct_windows_sandbox",
+    build_script_data = [
+        "Cargo.toml",
+        "anecdoct-windows-sandbox-setup.manifest",
+    ],
+)

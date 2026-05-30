@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "file-system",
+    crate_name = "anecdoct_file_system",
+)

@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "json-to-toml",
+    crate_name = "anecdoct_utils_json_to_toml",
+)

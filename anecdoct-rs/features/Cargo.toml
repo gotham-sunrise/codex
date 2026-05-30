@@ -1,0 +1,24 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-features"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_features"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-otel = { workspace = true }
+anecdoct-protocol = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

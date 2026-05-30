@@ -1,0 +1,50 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-core-plugins"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_core_plugins"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+anecdoct-analytics = { workspace = true }
+anecdoct-app-server-protocol = { workspace = true }
+anecdoct-config = { workspace = true }
+anecdoct-core-skills = { workspace = true }
+anecdoct-exec-server = { workspace = true }
+anecdoct-git-utils = { workspace = true }
+anecdoct-hooks = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-model-provider = { workspace = true }
+anecdoct-otel = { workspace = true }
+anecdoct-plugin = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-plugins = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+flate2 = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tar = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "rt", "time"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+libc = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }

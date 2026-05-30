@@ -1,0 +1,25 @@
+
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-utils-plugins"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_utils_plugins"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-exec-server = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

@@ -1,0 +1,7 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "execpolicy-legacy",
+    crate_name = "anecdoct_execpolicy_legacy",
+    compile_data = ["src/default.policy"],
+)

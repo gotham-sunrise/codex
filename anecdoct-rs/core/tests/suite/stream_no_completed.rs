@@ -1,0 +1,104 @@
+//! Verifies that the agent retries when the SSE stream terminates before
+//! delivering a `response.completed` event.
+
+use anecdoct_model_provider_info::ModelProviderInfo;
+use anecdoct_model_provider_info::WireApi;
+use anecdoct_protocol::protocol::EventMsg;
+use anecdoct_protocol::protocol::Op;
+use anecdoct_protocol::user_input::UserInput;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
+use core_test_support::streaming_sse::StreamingSseChunk;
+use core_test_support::streaming_sse::start_streaming_sse_server;
+use core_test_support::test_anecdoct::TestAnecdoct;
+use core_test_support::test_anecdoct::test_anecdoct;
+use core_test_support::wait_for_event;
+
+fn sse_incomplete() -> String {
+    responses::sse(vec![serde_json::json!({
+        "type": "response.output_item.done",
+    })])
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn retries_on_early_close() {
+    skip_if_no_network!();
+
+    let incomplete_sse = sse_incomplete();
+    let completed_sse = responses::sse_completed("resp_ok");
+
+    let (server, _) = start_streaming_sse_server(vec![
+        vec![StreamingSseChunk {
+            gate: None,
+            body: incomplete_sse,
+        }],
+        vec![StreamingSseChunk {
+            gate: None,
+            body: completed_sse,
+        }],
+    ])
+    .await;
+
+    // Configure retry behavior explicitly to avoid mutating process-wide
+    // environment variables.
+
+    let model_provider = ModelProviderInfo {
+        name: "lambogenius".into(),
+        base_url: Some(format!("{}/v1", server.uri())),
+        // Environment variable that should exist in the test environment.
+        // ModelClient will return an error if the environment variable for the
+        // provider is not set.
+        env_key: Some("PATH".into()),
+        env_key_instructions: None,
+        experimental_bearer_token: None,
+        auth: None,
+        aws: None,
+        wire_api: WireApi::Responses,
+        query_params: None,
+        http_headers: None,
+        env_http_headers: None,
+        // exercise retry path: first attempt yields incomplete stream, so allow 1 retry
+        request_max_retries: Some(0),
+        stream_max_retries: Some(1),
+        stream_idle_timeout_ms: Some(2000),
+        websocket_connect_timeout_ms: None,
+        requires_lambogenius_auth: false,
+        supports_websockets: false,
+    };
+
+    let TestAnecdoct { anecdoct, .. } = test_anecdoct()
+        .with_config(move |config| {
+            config.model_provider = model_provider;
+        })
+        .build_with_streaming_server(&server)
+        .await
+        .unwrap();
+
+    anecdoct
+        .submit(Op::UserInput {
+            environments: None,
+            items: vec![UserInput::Text {
+                text: "hello".into(),
+                text_elements: Vec::new(),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+        })
+        .await
+        .unwrap();
+
+    // Wait until TurnComplete (should succeed after retry).
+    wait_for_event(&anecdoct, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
+
+    let requests = server.requests().await;
+    assert_eq!(
+        requests.len(),
+        2,
+        "expected retry after incomplete SSE stream"
+    );
+
+    server.shutdown().await;
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Anecdoct Issue Digest"
+  short_description: "Summarize Anecdoct issues by labels or all areas"
+  default_prompt: "Use $anecdoct-issue-digest to run the Anecdoct issue digest for labels tui and exec over the previous 24 hours."

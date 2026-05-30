@@ -1,0 +1,91 @@
+[package]
+name = "anecdoct-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "anecdoct"
+path = "src/main.rs"
+
+[lib]
+name = "anecdoct_cli"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+clap_complete = { workspace = true }
+anecdoct-app-server = { workspace = true }
+anecdoct-app-server-daemon = { workspace = true }
+anecdoct-app-server-protocol = { workspace = true }
+anecdoct-app-server-test-client = { workspace = true }
+anecdoct-arg0 = { workspace = true }
+anecdoct-api = { workspace = true }
+anecdoct-chatgpt = { workspace = true }
+anecdoct-cloud-tasks = { path = "../cloud-tasks" }
+anecdoct-utils-cli = { workspace = true }
+anecdoct-config = { workspace = true }
+anecdoct-core = { workspace = true }
+anecdoct-core-plugins = { workspace = true }
+anecdoct-exec = { workspace = true }
+anecdoct-exec-server = { workspace = true }
+anecdoct-execpolicy = { workspace = true }
+anecdoct-features = { workspace = true }
+anecdoct-install-context = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-memories-write = { workspace = true }
+anecdoct-mcp = { workspace = true }
+anecdoct-mcp-server = { workspace = true }
+anecdoct-model-provider = { workspace = true }
+anecdoct-models-manager = { workspace = true }
+anecdoct-plugin = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-responses-api-proxy = { workspace = true }
+anecdoct-rmcp-client = { workspace = true }
+anecdoct-rollout-trace = { workspace = true }
+anecdoct-sandboxing = { workspace = true }
+anecdoct-state = { workspace = true }
+anecdoct-stdio-to-uds = { workspace = true }
+anecdoct-terminal-detection = { workspace = true }
+anecdoct-tui = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-path = { workspace = true }
+crossterm = { workspace = true }
+http = { workspace = true }
+libc = { workspace = true }
+owo-colors = { workspace = true }
+regex-lite = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+supports-color = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "net",
+    "process",
+    "rt-multi-thread",
+    "signal",
+    "time",
+] }
+toml = { workspace = true }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+anecdoct_windows_sandbox = { package = "anecdoct-windows-sandbox", path = "../windows-sandbox-rs" }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+assert_matches = { workspace = true }
+anecdoct-utils-cargo-bin = { workspace = true }
+predicates = { workspace = true }
+pretty_assertions = { workspace = true }
+sqlx = { workspace = true }

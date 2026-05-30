@@ -1,0 +1,28 @@
+[package]
+name = "anecdoct-backend-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+anecdoct-backend-openapi-models = { path = "../anecdoct-backend-openapi-models" }
+anecdoct-api = { workspace = true }
+anecdoct-client = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-model-provider = { workspace = true }
+anecdoct-protocol = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = "1"

@@ -1,0 +1,19 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-plugin"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_plugin"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-config = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-plugins = { workspace = true }
+thiserror = { workspace = true }

@@ -1,0 +1,36 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-model-provider"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_model_provider"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+anecdoct-api = { workspace = true }
+anecdoct-agent-identity = { workspace = true }
+anecdoct-aws-auth = { workspace = true }
+anecdoct-client = { workspace = true }
+anecdoct-feedback = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-model-provider-info = { workspace = true }
+anecdoct-models-manager = { workspace = true }
+anecdoct-otel = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-response-debug-context = { workspace = true }
+http = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing = { workspace = true, features = ["log"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
+wiremock = { workspace = true }

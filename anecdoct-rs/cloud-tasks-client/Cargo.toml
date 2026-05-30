@@ -1,0 +1,25 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-cloud-tasks-client"
+version.workspace = true
+
+[lib]
+name = "anecdoct_cloud_tasks_client"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+anecdoct-api = { workspace = true }
+anecdoct-backend-client = { workspace = true }
+anecdoct-git-utils = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

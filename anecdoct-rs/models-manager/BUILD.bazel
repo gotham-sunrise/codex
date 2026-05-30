@@ -1,0 +1,10 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "models-manager",
+    crate_name = "anecdoct_models_manager",
+    compile_data = [
+        "models.json",
+        "prompt.md",
+    ],
+)

@@ -1,0 +1,21 @@
+[package]
+name = "anecdoct-utils-sandbox-summary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-core = { workspace = true }
+anecdoct-model-provider-info = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+
+[dev-dependencies]
+anecdoct-utils-absolute-path = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

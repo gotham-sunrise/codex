@@ -1,0 +1,26 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-memories-read"
+version.workspace = true
+
+[lib]
+name = "anecdoct_memories_read"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-protocol = { workspace = true }
+anecdoct-shell-command = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-output-truncation = { workspace = true }
+anecdoct-utils-template = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros"] }

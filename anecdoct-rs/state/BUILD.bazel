@@ -1,0 +1,7 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "state",
+    crate_name = "anecdoct_state",
+    compile_data = glob(["logs_migrations/**", "migrations/**"]),
+)

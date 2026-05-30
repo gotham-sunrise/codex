@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "lmstudio",
+    crate_name = "anecdoct_lmstudio",
+)

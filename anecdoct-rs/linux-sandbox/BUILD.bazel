@@ -1,0 +1,9 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "linux-sandbox",
+    crate_name = "anecdoct_linux_sandbox",
+    extra_binaries = [
+        "//anecdoct-rs/bwrap:bwrap",
+    ],
+)

@@ -1,0 +1,42 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-core-skills"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_core_skills"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+anecdoct-analytics = { workspace = true }
+anecdoct-app-server-protocol = { workspace = true }
+anecdoct-config = { workspace = true }
+anecdoct-exec-server = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-model-provider = { workspace = true }
+anecdoct-otel = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-skills = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-output-truncation = { workspace = true }
+anecdoct-utils-plugins = { workspace = true }
+dirs = { workspace = true }
+dunce = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+shlex = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "rt"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

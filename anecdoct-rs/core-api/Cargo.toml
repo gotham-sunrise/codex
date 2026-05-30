@@ -1,0 +1,29 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-core-api"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_core_api"
+path = "src/lib.rs"
+test = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-app-server-protocol = { workspace = true }
+anecdoct-arg0 = { workspace = true }
+anecdoct-analytics = { workspace = true }
+anecdoct-config = { workspace = true }
+anecdoct-core = { workspace = true }
+anecdoct-extension-api = { workspace = true }
+anecdoct-exec-server = { workspace = true }
+anecdoct-features = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-model-provider-info = { workspace = true }
+anecdoct-models-manager = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }

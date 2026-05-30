@@ -1,0 +1,19 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-guardian"
+version.workspace = true
+
+[lib]
+name = "anecdoct_guardian"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anecdoct-core = { workspace = true }
+anecdoct-extension-api = { workspace = true }
+anecdoct-protocol = { workspace = true }

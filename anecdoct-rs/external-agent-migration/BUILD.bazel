@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "external-agent-migration",
+    crate_name = "anecdoct_external_agent_migration",
+)

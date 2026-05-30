@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "home-dir",
+    crate_name = "anecdoct_utils_home_dir",
+)

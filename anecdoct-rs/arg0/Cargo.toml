@@ -1,0 +1,26 @@
+[package]
+name = "anecdoct-arg0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "anecdoct_arg0"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+anecdoct-apply-patch = { workspace = true }
+anecdoct-exec-server = { workspace = true }
+anecdoct-linux-sandbox = { workspace = true }
+anecdoct-sandboxing = { workspace = true }
+anecdoct-shell-escalation = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-home-dir = { workspace = true }
+dotenvy = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }

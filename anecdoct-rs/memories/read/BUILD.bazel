@@ -1,0 +1,9 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "read",
+    crate_name = "anecdoct_memories_read",
+    compile_data = glob([
+        "templates/**",
+    ]),
+)

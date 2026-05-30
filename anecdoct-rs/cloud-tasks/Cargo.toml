@@ -1,0 +1,46 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-cloud-tasks"
+version.workspace = true
+
+[lib]
+name = "anecdoct_cloud_tasks"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+clap = { workspace = true, features = ["derive"] }
+anecdoct-client = { workspace = true }
+anecdoct-cloud-tasks-client = { workspace = true }
+# TODO: anecdoct-cloud-tasks-mock-client should be in dev-dependencies.
+anecdoct-cloud-tasks-mock-client = { workspace = true }
+anecdoct-core = { workspace = true }
+anecdoct-git-utils = { workspace = true }
+anecdoct-login = { path = "../login" }
+anecdoct-model-provider = { workspace = true }
+anecdoct-tui = { workspace = true }
+anecdoct-utils-cli = { workspace = true }
+crossterm = { workspace = true, features = ["event-stream"] }
+owo-colors = { workspace = true, features = ["supports-colors"] }
+ratatui = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+supports-color = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tokio-stream = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+unicode-width = { workspace = true }
+
+[dependencies.async-trait]
+workspace = true
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

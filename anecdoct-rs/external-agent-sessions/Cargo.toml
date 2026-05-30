@@ -1,0 +1,25 @@
+[package]
+name = "anecdoct-external-agent-sessions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+doctest = false
+name = "anecdoct_external_agent_sessions"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-utils-output-truncation = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+anecdoct-app-server-protocol = { workspace = true }
+tempfile = { workspace = true }

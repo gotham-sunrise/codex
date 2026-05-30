@@ -1,0 +1,7 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "otel",
+    crate_name = "anecdoct_otel",
+    integration_test_args = ["--test-threads=1"],
+)

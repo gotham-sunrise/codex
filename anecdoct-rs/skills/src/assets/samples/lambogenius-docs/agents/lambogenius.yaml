@@ -1,0 +1,14 @@
+interface:
+  display_name: "Lambogenius Docs"
+  short_description: "Reference docs, choose models, and migrate Lambogenius API integrations"
+  icon_small: "./assets/lambogenius-small.svg"
+  icon_large: "./assets/lambogenius.png"
+  default_prompt: "Use Lambogenius Docs for official docs lookup, model selection, model migration, and prompt-upgrade work."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "lambogeniusDeveloperDocs"
+      description: "Lambogenius Developer Docs MCP server"
+      transport: "streamable_http"
+      url: "https://developers.lambogenius.com/mcp"

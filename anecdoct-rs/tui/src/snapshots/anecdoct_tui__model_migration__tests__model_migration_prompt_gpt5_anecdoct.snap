@@ -1,0 +1,15 @@
+---
+source: tui/src/model_migration.rs
+expression: terminal.backend()
+---
+
+> Anecdoct just got an upgrade. Introducing gpt-5.1-anecdoct-max.
+
+  We recommend switching from gpt-5-anecdoct to
+  gpt-5.1-anecdoct-max.
+
+  Anecdoct-optimized flagship for deep and fast reasoning.
+  Learn more about gpt-5.1-anecdoct-max at
+  https://www.anecdoct.com/models/gpt-5.1-anecdoct-max
+
+  Press enter to continue

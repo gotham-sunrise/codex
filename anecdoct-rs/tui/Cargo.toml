@@ -1,0 +1,167 @@
+[package]
+name = "anecdoct-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+autobins = false
+
+[[bin]]
+name = "anecdoct-tui"
+path = "src/main.rs"
+
+[[bin]]
+name = "md-events"
+path = "src/bin/md-events.rs"
+
+[lib]
+name = "anecdoct_tui"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+clap = { workspace = true, features = ["derive"] }
+anecdoct-ansi-escape = { workspace = true }
+anecdoct-app-server-client = { workspace = true }
+anecdoct-app-server-protocol = { workspace = true }
+anecdoct-arg0 = { workspace = true }
+anecdoct-install-context = { workspace = true }
+anecdoct-chatgpt = { workspace = true }
+anecdoct-cloud-requirements = { workspace = true }
+anecdoct-config = { workspace = true }
+anecdoct-connectors = { workspace = true }
+anecdoct-core-plugins = { workspace = true }
+anecdoct-core-skills = { workspace = true }
+anecdoct-exec-server = { workspace = true }
+anecdoct-features = { workspace = true }
+anecdoct-feedback = { workspace = true }
+anecdoct-file-search = { workspace = true }
+anecdoct-git-utils = { workspace = true }
+anecdoct-login = { workspace = true }
+anecdoct-message-history = { workspace = true }
+anecdoct-model-provider = { workspace = true }
+anecdoct-model-provider-info = { workspace = true }
+anecdoct-models-manager = { workspace = true }
+anecdoct-otel = { workspace = true }
+anecdoct-plugin = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-realtime-webrtc = { workspace = true }
+anecdoct-rollout = { workspace = true }
+anecdoct-sandboxing = { workspace = true }
+anecdoct-shell-command = { workspace = true }
+anecdoct-state = { workspace = true }
+anecdoct-terminal-detection = { workspace = true }
+anecdoct-utils-approval-presets = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-cli = { workspace = true }
+anecdoct-utils-elapsed = { workspace = true }
+anecdoct-utils-fuzzy-match = { workspace = true }
+anecdoct-utils-home-dir = { workspace = true }
+anecdoct-utils-oss = { workspace = true }
+anecdoct-utils-path = { workspace = true }
+anecdoct-utils-plugins = { workspace = true }
+anecdoct-utils-sandbox-summary = { workspace = true }
+anecdoct-utils-sleep-inhibitor = { workspace = true }
+anecdoct-utils-string = { workspace = true }
+color-eyre = { workspace = true }
+crossterm = { workspace = true, features = ["bracketed-paste", "event-stream"] }
+derive_more = { workspace = true, features = ["is_variant"] }
+diffy = { workspace = true }
+dirs = { workspace = true }
+dunce = { workspace = true }
+image = { workspace = true, features = ["jpeg", "png", "gif", "webp"] }
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+pathdiff = { workspace = true }
+pulldown-cmark = { workspace = true }
+rand = { workspace = true }
+ratatui = { workspace = true, features = [
+    "scrolling-regions",
+    "unstable-backend-writer",
+    "unstable-rendered-line-info",
+    "unstable-widget-ref",
+] }
+ratatui-macros = { workspace = true }
+regex-lite = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "json"] }
+rmcp = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+sha2 = { workspace = true }
+shlex = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+supports-color = { workspace = true }
+tempfile = { workspace = true }
+textwrap = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "process",
+    "rt-multi-thread",
+    "signal",
+    "test-util",
+    "time",
+] }
+tokio-stream = { workspace = true, features = ["sync"] }
+toml = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+syntect = "5"
+two-face = { version = "0.5", default-features = false, features = ["syntect-default-onig"] }
+unicode-segmentation = { workspace = true }
+unicode-width = { workspace = true }
+url = { workspace = true }
+urlencoding = { workspace = true }
+webbrowser = { workspace = true }
+uuid = { workspace = true }
+
+anecdoct-windows-sandbox = { workspace = true }
+tokio-util = { workspace = true, features = ["time"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+cpal = "0.15"
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+which = { workspace = true }
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+] }
+winsplit = "0.1"
+
+# Clipboard support via `arboard` is not available on Android/Termux.
+# Only include it for non-Android targets so the crate builds on Android.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard = { workspace = true }
+
+
+[dev-dependencies]
+anecdoct-cli = { workspace = true }
+anecdoct-mcp = { workspace = true }
+core_test_support = { workspace = true }
+anecdoct-utils-cargo-bin = { workspace = true }
+assert_matches = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+insta = { workspace = true }
+pretty_assertions = { workspace = true }
+rand = { workspace = true }
+serial_test = { workspace = true }
+vt100 = { workspace = true }
+uuid = { workspace = true }
+wiremock = { workspace = true }

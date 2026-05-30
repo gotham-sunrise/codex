@@ -1,0 +1,6 @@
+load("//:defs.bzl", "anecdoct_rust_crate")
+
+anecdoct_rust_crate(
+    name = "anecdoct-backend-openapi-models",
+    crate_name = "anecdoct_backend_openapi_models",
+)

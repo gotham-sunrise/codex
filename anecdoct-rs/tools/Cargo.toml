@@ -1,0 +1,34 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "anecdoct-tools"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+anecdoct-app-server-protocol = { workspace = true }
+anecdoct-code-mode = { workspace = true }
+anecdoct-features = { workspace = true }
+anecdoct-protocol = { workspace = true }
+anecdoct-utils-absolute-path = { workspace = true }
+anecdoct-utils-pty = { workspace = true }
+anecdoct-utils-string = { workspace = true }
+rmcp = { workspace = true, default-features = false, features = [
+    "base64",
+    "macros",
+    "schemars",
+    "server",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false
